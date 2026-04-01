@@ -1,0 +1,30 @@
+fin_navigator/
+├── app/
+│   ├── __init__.py          (пустой файл)
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── auth.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── parser.py
+│   │   ├── budget_analyzer.py
+│   │   └── ai_assistant.py
+│   └── routers/
+│       ├── __init__.py
+│       ├── auth.py
+│       ├── upload.py
+│       ├── profile.py
+│       ├── goals.py
+│       ├── chat.py
+│       └── recommendations.py
+├── static/
+│   └── index.html
+├── data/
+│   └── .gitkeep
+├── .env
+├── .gitignore
+├── requirements.txt
+└── Затраты.xls              (ваш файл с расходами)
