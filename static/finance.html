@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>ФинНавигатор</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #fef8f0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #c47a5e; margin-bottom: 20px; }
+        
+        /* Вкладки - сделаем неактивные более заметными */
+        .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; border-bottom: 1px solid #e5d9ce; padding-bottom: 12px; }
+        .tab-btn { background: #e0d4c8; border: none; padding: 10px 24px; border-radius: 40px; font-size: 15px; cursor: pointer; color: #4a3b2a; font-weight: 500; transition: all 0.2s; }
+        .tab-btn:hover { background: #d0c0b0; transform: translateY(-2px); }
+        .tab-btn.active { background: #c47a5e; color: white; box-shadow: 0 2px 8px rgba(196,122,94,0.3); }
+        
+        .tab-pane { display: none; background: white; border-radius: 28px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .tab-pane.active { display: block; }
+        
+        input, textarea, select { width: 100%; padding: 12px 14px; margin-bottom: 16px; border: 1px solid #e0d4c8; border-radius: 20px; background: #fffdf9; }
+        button { background: #c47a5e; color: white; border: none; padding: 10px 22px; border-radius: 40px; cursor: pointer; margin-right: 12px; margin-bottom: 10px; font-weight: 500; }
+        button:hover { background: #a85e42; transform: translateY(-1px); }
+        .output { background: #fef6ed; padding: 16px; border-radius: 20px; margin-top: 20px; border: 1px solid #f0e2d6; max-height: 500px; overflow: auto; }
+        .error { background: #ffe6e5; color: #b33; }
+        
+        .flex-row { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+        .chart-box { flex: 1; min-width: 260px; }
+        
+        /* Статистические карточки - новый дизайн */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: #fef6ed; padding: 20px; border-radius: 20px; text-align: center; border: 1px solid #f0e2d6; transition: all 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
+        .stat-card .value { font-size: 32px; font-weight: bold; color: #c47a5e; }
+        .stat-card .label { font-size: 14px; color: #8a7a66; margin-top: 5px; }
+        
+        .stats-table { width: 100%; border-collapse: collapse; }
+        .stats-table th, .stats-table td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #efe2d6; }
+        .stats-table tr:hover { background: #fef3e8; }
+        
+        .filter-bar { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+        .family-size { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+        .family-size input { width: 80px; margin: 0; }
+        .positive { color: #c47a5e; font-weight: bold; }
+        .negative { color: #4caf50; }
+        
+        /* Скрываем нижние карточки-дубликаты */
+        .feature-grid { display: none; }
+        
+        /* Тултип для подсказок */
+        .help-icon { display: inline-block; width: 18px; height: 18px; background: #c47a5e; color: white; border-radius: 50%; text-align: center; font-size: 12px; line-height: 18px; cursor: help; margin-left: 5px; }
+        .help-icon:hover { background: #a85e42; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🧭 ФинНавигатор</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="register">📝 Регистрация</button>
+        <button class="tab-btn" data-tab="login">🔐 Вход</button>
+        <button class="tab-btn" data-tab="profile">👤 Профиль</button>
+        <button class="tab-btn" data-tab="goals">🎯 Цели</button>
+        <button class="tab-btn" data-tab="chat">💬 AI-чат</button>
+        <button class="tab-btn" data-tab="excel">📊 Excel</button>
+        <button class="tab-btn" data-tab="education">📚 Образование</button>
+        <button class="tab-btn" data-tab="forecast">📈 Прогнозы</button>
+        <button class="tab-btn" data-tab="budget">💰 Бюджет</button>
+    </div>
+
+    <!-- Регистрация -->
+    <div id="register" class="tab-pane active">
+        <h2>Создать аккаунт</h2>
+        <input type="email" id="regEmail" placeholder="Email">
+        <input type="password" id="regPassword" placeholder="Пароль">
+        <input type="text" id="regFullName" placeholder="Ваше имя">
+        <button id="doRegister">Зарегистрироваться</button>
+        <div id="regResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Вход -->
+    <div id="login" class="tab-pane">
+        <h2>Вход в аккаунт</h2>
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Пароль">
+        <button id="doLogin">Войти</button>
+        <div id="loginResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Профиль -->
+    <div id="profile" class="tab-pane">
+        <h2>Мой профиль</h2>
+        <input type="text" id="firstName" placeholder="Имя">
+        <input type="number" id="age" placeholder="Возраст">
+        <input type="text" id="hobbies" placeholder="Хобби (через запятую)">
+        <input type="number" id="familySize" placeholder="Количество членов семьи" value="1">
+        <button id="getProfile">Загрузить профиль</button>
+        <button id="updateProfile">Сохранить профиль</button>
+        <div id="profileResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Цели -->
+    <div id="goals" class="tab-pane">
+        <h2>Финансовые цели</h2>
+        <input type="text" id="goalName" placeholder="Название цели">
+        <input type="number" id="goalAmount" placeholder="Сумма (₽)">
+        <input type="date" id="goalDeadline">
+        <button id="createGoal">Создать цель</button>
+        <button id="listGoals">Мои цели</button>
+        <div id="goalsResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- AI-чат -->
+    <div id="chat" class="tab-pane">
+        <h2>🤖 Финансовый советник</h2>
+        <textarea id="chatMessage" rows="3" placeholder="Например: «Хочу накопить 300 000 ₽ за год»"></textarea>
+        <button id="sendChat">Спросить AI</button>
+        <div id="chatResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Excel анализ -->
+    <div id="excel" class="tab-pane">
+        <h2>📊 Анализ расходов (Excel)</h2>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; margin-bottom: 20px;">
+            <input type="file" id="excelFile" accept=".xls,.xlsx" style="width: auto;">
+            <button id="uploadExcelBtn">📂 Загрузить и анализировать</button>
+            <div class="family-size">
+                <label>👨‍👩‍👧 Размер семьи:</label>
+                <input type="number" id="familySizeFilter" value="1" min="1">
+            </div>
+        </div>
+        <div id="uploadStatus" class="output" style="display:none;"></div>
+        
+        <div id="analysisContainer" style="display:none;">
+            <div class="filter-bar">
+                <label>📅 Фильтр по месяцу:</label>
+                <select id="monthFilter"><option value="all">Все месяцы</option></select>
+                <button id="refreshAnalysis">Обновить</button>
+            </div>
+            <div class="stats" id="statsCards"></div>
+            <div class="flex-row">
+                <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+                <div class="chart-box"><canvas id="expenseChart"></canvas></div>
+            </div>
+            <div>
+                <h3>📋 Детализация расходов</h3>
+                <table class="stats-table" id="statsTable">
+                    <thead><tr><th>Категория</th><th>Сумма (₽)</th><th>Доля (%)</th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div id="comparisonContainer">
+                <h3>📊 Сравнение с Россией</h3>
+                <table class="stats-table" id="comparisonTable">
+                    <thead><tr><th>Категория</th><th>Мои (₽/мес)</th><th>РФ (₽)</th><th>Отклонение</th></tr></thead>
+                    <tbody id="comparisonBody"></tbody>
+                </table>
+            </div>
+            <div id="recommendationsBox"></div>
+        </div>
+    </div>
+
+    <!-- Образование -->
+    <div id="education" class="tab-pane">
+        <h2>📚 Образование и карьера</h2>
+        <p>На основе ваших хобби из профиля</p>
+        <button id="getRecommendations">Получить рекомендации</button>
+        <div id="educationResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Прогнозы -->
+    <div id="forecast" class="tab-pane">
+        <h2>📈 Прогнозы и риски</h2>
+        <p><span class="help-icon" title="Анализ финансовой устойчивости">?</span> <strong>Анализ рисков</strong> — оценка стабильности ваших расходов и рекомендации по созданию резервного фонда</p>
+        <button id="getForecast">📊 Рассчитать прогноз</button>
+        <div id="forecastResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Бюджет -->
+    <div id="budget" class="tab-pane">
+        <h2>💰 Бюджет 50/30/20</h2>
+        <p><span class="help-icon" title="Правило распределения бюджета">?</span> <strong>50% обязательные расходы, 30% желания, 20% накопления</strong></p>
+        <button id="getBudgetDistribution">📊 Рассчитать бюджет</button>
+        <div id="budgetResult" class="output" style="display:none;"></div>
+    </div>
+</div>
+
+<script>
+    let token = localStorage.getItem('access_token') || null;
+    let fullData = null;
+    let monthlyChart = null, categoryChart = null;
+    
+    const russianAverages = {
+        'продукты': 18000, 'алкоголь': 3000, 'лекарства': 2000, 'машина': 5000,
+        'хобби': 3000, 'дача': 2000, 'квартира': 7000, 'лечение': 3000,
+        'образование': 4000, 'подарки': 5000, 'домаш.животн.': 1500, 'одежда': 4000,
+        'обувь': 2000, 'бытовая химия': 1500, 'косметические средства': 2000,
+        'бытовая техника': 3000, 'тлф, пк': 3000
+    };
+    
+    function showResult(elId, msg, isError = false) {
+        const el = document.getElementById(elId);
+        if (el) { el.style.display = 'block'; el.className = 'output ' + (isError ? 'error' : ''); el.innerHTML = msg; }
+    }
+    
+    // РЕГИСТРАЦИЯ
+    document.getElementById('doRegister').onclick = async () => {
+        const fd = new URLSearchParams();
+        fd.append('email', document.getElementById('regEmail').value);
+        fd.append('password', document.getElementById('regPassword').value);
+        fd.append('full_name', document.getElementById('regFullName').value);
+        try {
+            const res = await fetch('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: fd });
+            const data = await res.json();
+            if (res.ok) showResult('regResult', '✅ Регистрация успешна!', false);
+            else showResult('regResult', '❌ ' + (data.detail || 'Ошибка'), true);
+        } catch(e) { showResult('regResult', '❌ Ошибка', true); }
+    };
+    
+    // ВХОД
+    document.getElementById('doLogin').onclick = async () => {
+        const fd = new URLSearchParams();
+        fd.append('username', document.getElementById('loginEmail').value);
+        fd.append('password', document.getElementById('loginPassword').value);
+        try {
+            const res = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: fd });
+            const data = await res.json();
+            if (res.ok) {
+                token = data.access_token;
+                localStorage.setItem('access_token', token);
+                showResult('loginResult', '✅ Вход выполнен!', false);
+            } else showResult('loginResult', '❌ ' + (data.detail || 'Ошибка'), true);
+        } catch(e) { showResult('loginResult', '❌ Ошибка', true); }
+    };
+    
+    // ПРОФИЛЬ
+    document.getElementById('getProfile').onclick = async () => {
+        if (!token) { showResult('profileResult', 'Сначала войдите', true); return; }
+        try {
+            const res = await fetch('/profile/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('firstName').value = data.first_name || '';
+                document.getElementById('age').value = data.age || '';
+                document.getElementById('hobbies').value = (data.hobbies || []).join(', ');
+                document.getElementById('familySize').value = data.family_size || 1;
+                showResult('profileResult', '✅ Профиль загружен', false);
+            } else showResult('profileResult', '❌ Ошибка', true);
+        } catch(e) { showResult('profileResult', '❌ Ошибка', true); }
+    };
+    
+    document.getElementById('updateProfile').onclick = async () => {
+        if (!token) { showResult('profileResult', 'Сначала войдите', true); return; }
+        const fd = new URLSearchParams();
+        fd.append('first_name', document.getElementById('firstName').value);
+        fd.append('age', document.getElementById('age').value);
+        fd.append('hobbies', document.getElementById('hobbies').value);
+        fd.append('family_size', document.getElementById('familySize').value);
+        try {
+            const res = await fetch('/profile/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Bearer ${token}` }, body: fd });
+            if (res.ok) showResult('profileResult', '✅ Профиль обновлён!', false);
+            else showResult('profileResult', '❌ Ошибка', true);
+        } catch(e) { showResult('profileResult', '❌ Ошибка', true); }
+    };
+    
+    // ЦЕЛИ
+    document.getElementById('createGoal').onclick = async () => {
+        if (!token) { showResult('goalsResult', 'Сначала войдите', true); return; }
+        const fd = new URLSearchParams();
+        fd.append('name', document.getElementById('goalName').value);
+        fd.append('target_amount', document.getElementById('goalAmount').value);
+        const deadline = document.getElementById('goalDeadline').value;
+        if (deadline) fd.append('deadline', deadline);
+        try {
+            const res = await fetch('/goals/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Bearer ${token}` }, body: fd });
+            const data = await res.json();
+            if (res.ok) showResult('goalsResult', '✅ Цель создана!', false);
+            else showResult('goalsResult', '❌ ' + (data.detail || 'Ошибка'), true);
+        } catch(e) { showResult('goalsResult', '❌ Ошибка', true); }
+    };
+    
+    document.getElementById('listGoals').onclick = async () => {
+        if (!token) { showResult('goalsResult', 'Сначала войдите', true); return; }
+        try {
+            const res = await fetch('/goals/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (res.ok && data.length) {
+                let msg = 'Ваши цели:\n';
+                data.forEach(g => msg += `• ${g.name}: ${(g.current_amount || 0).toLocaleString()}/${g.target_amount.toLocaleString()} ₽\n`);
+                showResult('goalsResult', msg, false);
+            } else if (res.ok) showResult('goalsResult', 'У вас пока нет целей', false);
+            else showResult('goalsResult', '❌ Ошибка', true);
+        } catch(e) { showResult('goalsResult', '❌ Ошибка', true); }
+    };
+    
+    // AI-ЧАТ
+    document.getElementById('sendChat').onclick = async () => {
+        const message = document.getElementById('chatMessage').value;
+        if (!message.trim()) { showResult('chatResult', 'Введите вопрос', true); return; }
+        const fd = new URLSearchParams();
+        fd.append('message', message);
+        showResult('chatResult', '⏳ Думаю...', false);
+        try {
+            const res = await fetch('/chat/message', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: fd });
+            const data = await res.json();
+            if (res.ok) showResult('chatResult', '🤖 ' + (data.response || 'Готово'), false);
+            else showResult('chatResult', '❌ Ошибка: ' + (data.detail || 'Неизвестная'), true);
+        } catch(e) { showResult('chatResult', '❌ Ошибка: ' + e.message, true); }
+    };
+    
+    // ОБРАЗОВАНИЕ
+    document.getElementById('getRecommendations').onclick = async () => {
+        if (!token) { showResult('educationResult', 'Сначала войдите', true); return; }
+        const hobbies = document.getElementById('hobbies').value;
+        if (!hobbies.trim()) { showResult('educationResult', 'Сначала укажите хобби в профиле', true); return; }
+        const fd = new URLSearchParams();
+        fd.append('hobbies', hobbies);
+        try {
+            const res = await fetch('/chat/recommendations', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Bearer ${token}` }, body: fd });
+            const data = await res.json();
+            if (res.ok && data.recommendations) {
+                let html = '<strong>🎓 Рекомендации:</strong><br><br>';
+                data.recommendations.forEach(r => { html += `<div style="margin-bottom:15px; padding:10px; background:#fef6ed; border-radius:12px;"><b>${r.title}</b><br>📘 ${r.description}<br>⏱️ ${r.duration}<br>💰 ${r.cost?.toLocaleString()} ₽<br>💵 ${r.potential_income}</div><br>`; });
+                showResult('educationResult', html);
+            } else showResult('educationResult', 'Ошибка: ' + (data.detail || 'Нет данных'), true);
+        } catch(e) { showResult('educationResult', 'Ошибка: ' + e.message, true); }
+    };
+    
+    // ПРОГНОЗЫ
+    document.getElementById('getForecast').onclick = async () => {
+        const file = document.getElementById('excelFile').files[0];
+        if (!file) { showResult('forecastResult', 'Сначала загрузите Excel', true); return; }
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+            const res = await fetch('/excel/forecast', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (res.ok && data.status === 'ok') {
+                const f = data.forecast;
+                let html = `<strong>📊 Анализ финансовых рисков</strong><br><br>`;
+                html += `<strong>💰 Среднемесячные расходы:</strong> ${f.avg_monthly.toLocaleString()} ₽<br>`;
+                html += `<strong>🛡️ Рекомендуемый резервный фонд:</strong> ${f.recommended_reserve.toLocaleString()} ₽ <span style="font-size:12px; color:#666;">(3 месяца расходов)</span><br>`;
+                html += `<strong>⚠️ Уровень волатильности расходов:</strong> `;
+                if (f.risk_level === 'high') html += `<span style="color:#c47a5e;">Высокий</span> — расходы сильно меняются от месяца к месяцу<br>`;
+                else if (f.risk_level === 'medium') html += `<span style="color:#e7b183;">Средний</span> — есть колебания, но в пределах нормы<br>`;
+                else html += `<span style="color:#4caf50;">Низкий</span> — расходы стабильны<br>`;
+                html += `<br><strong>📌 Что это значит?</strong><br>`;
+                html += `• Резервный фонд — деньги на случай потери дохода или непредвиденных расходов<br>`;
+                html += `• Рекомендуется хранить резерв на отдельном счёте или вкладе<br>`;
+                if (f.risks.length) html += `<br><strong>⚠️ Рекомендации:</strong><br>${f.risks.join('<br>')}`;
+                else html += `<br>✅ Рисков не обнаружено. Хорошая финансовая дисциплина!`;
+                showResult('forecastResult', html);
+            } else showResult('forecastResult', 'Ошибка', true);
+        } catch(e) { showResult('forecastResult', 'Ошибка: ' + e.message, true); }
+    };
+    
+     // БЮДЖЕТ 50/30/20 (на основе ПОСЛЕДНЕГО месяца)
+    document.getElementById('getBudgetDistribution').onclick = async () => {
+        const file = document.getElementById('excelFile').files[0];
+        if (!file) { showResult('budgetResult', 'Сначала загрузите Excel', true); return; }
+        
+        showResult('budgetResult', '⏳ Расчёт бюджета...', false);
+        
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+            const res = await fetch('/excel/upload', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (res.ok && data.status === 'ok') {
+                // Берём ПОСЛЕДНИЙ месяц из данных
+                const lastMonth = data.months_table_data[data.months_table_data.length - 1];
+                const monthlyExpenses = lastMonth.total;  // Расходы за последний месяц
+                const monthName = lastMonth.month;
+                
+                // Идеальные значения для этого месяца
+                const idealNeeds = Math.round(monthlyExpenses * 0.5);
+                const idealWants = Math.round(monthlyExpenses * 0.3);
+                const idealSavings = Math.round(monthlyExpenses * 0.2);
+                
+                // Фактические расходы за последний месяц по категориям
+                let actualNeeds = 0;
+                let actualWants = 0;
+                let actualSavings = 0;
+                
+                const needsCategories = ['продукты', 'жкх', 'квартира', 'лекарства', 'лечение', 'машина', 'тлф, пк', 'связь'];
+                const wantsCategories = ['алкоголь', 'хобби', 'подарки', 'одежда', 'обувь', 'кафе', 'рестораны', 'развлечения', 'бытовая техника', 'бытовая химия', 'косметические средства', 'дача'];
+                
+                for (const cat of lastMonth.categories) {
+                    if (needsCategories.includes(cat.category)) {
+                        actualNeeds += cat.amount;
+                    } else if (wantsCategories.includes(cat.category)) {
+                        actualWants += cat.amount;
+                    } else {
+                        actualSavings += cat.amount;
+                    }
+                }
+                
+                const needsPercent = Math.round(actualNeeds / monthlyExpenses * 100);
+                const wantsPercent = Math.round(actualWants / monthlyExpenses * 100);
+                const savingsPercent = Math.round(actualSavings / monthlyExpenses * 100);
+                
+                let html = `<strong>💰 Бюджет по правилу 50/30/20</strong><br><br>`;
+                html += `📅 <strong>Расчётный месяц:</strong> ${monthName}<br>`;
+                html += `📊 <strong>Расходы за месяц:</strong> ${monthlyExpenses.toLocaleString()} ₽<br><br>`;
+                
+                html += `<table style="width:100%; border-collapse:collapse;">`;
+                html += `<tr style="background:#fef3e8;">
+                            <th style="padding:12px; text-align:left;">Категория</th>
+                            <th style="padding:12px; text-align:center;">Идеал (50/30/20)</th>
+                            <th style="padding:12px; text-align:center;">Ваши расходы</th>
+                            <th style="padding:12px; text-align:center;">Отклонение</th>
+                          </tr>`;
+                
+                // Обязательные расходы (50%)
+                let needsStatus = actualNeeds <= idealNeeds ? '✅ Норма' : '⚠️ Превышение';
+                let needsColor = actualNeeds <= idealNeeds ? '#4caf50' : '#c47a5e';
+                let needsDiff = actualNeeds - idealNeeds;
+                let needsDiffText = needsDiff > 0 ? `+${needsDiff.toLocaleString()} ₽` : `${needsDiff.toLocaleString()} ₽`;
+                html += `<tr>
+                            <td style="padding:12px;">✅ <strong>Обязательные расходы</strong><br><span style="font-size:12px; color:#666;">ЖКХ, продукты, транспорт, связь, лекарства</span></td>
+                            <td style="padding:12px; text-align:center;">${idealNeeds.toLocaleString()} ₽<br><span style="font-size:11px;">(50%)</span></td>
+                            <td style="padding:12px; text-align:center;">${actualNeeds.toLocaleString()} ₽<br><span style="font-size:11px;">(${needsPercent}%)</span></td>
+                            <td style="padding:12px; text-align:center; color:${needsColor};">${needsStatus}<br><span style="font-size:11px;">${needsDiffText}</span></td>
+                          </tr>`;
+                
+                // Желания (30%)
+                let wantsStatus = actualWants <= idealWants ? '✅ Норма' : '⚠️ Превышение';
+                let wantsColor = actualWants <= idealWants ? '#4caf50' : '#c47a5e';
+                let wantsDiff = actualWants - idealWants;
+                let wantsDiffText = wantsDiff > 0 ? `+${wantsDiff.toLocaleString()} ₽` : `${wantsDiff.toLocaleString()} ₽`;
+                html += `<tr>
+                            <td style="padding:12px;">🎯 <strong>Желания</strong><br><span style="font-size:12px; color:#666;">Кафе, рестораны, развлечения, хобби, подарки</span></td>
+                            <td style="padding:12px; text-align:center;">${idealWants.toLocaleString()} ₽<br><span style="font-size:11px;">(30%)</span></td>
+                            <td style="padding:12px; text-align:center;">${actualWants.toLocaleString()} ₽<br><span style="font-size:11px;">(${wantsPercent}%)</span></td>
+                            <td style="padding:12px; text-align:center; color:${wantsColor};">${wantsStatus}<br><span style="font-size:11px;">${wantsDiffText}</span></td>
+                          </tr>`;
+                
+                // Накопления (20%)
+                let savingsStatus = actualSavings >= idealSavings ? '✅ Отлично' : '⚠️ Мало';
+                let savingsColor = actualSavings >= idealSavings ? '#4caf50' : '#c47a5e';
+                let savingsDiff = actualSavings - idealSavings;
+                let savingsDiffText = savingsDiff > 0 ? `+${savingsDiff.toLocaleString()} ₽` : `${savingsDiff.toLocaleString()} ₽`;
+                html += `<tr>
+                            <td style="padding:12px;">💰 <strong>Накопления / Прочее</strong><br><span style="font-size:12px; color:#666;">Сбережения, инвестиции, крупные покупки</span></td>
+                            <td style="padding:12px; text-align:center;">${idealSavings.toLocaleString()} ₽<br><span style="font-size:11px;">(20%)</span></td>
+                            <td style="padding:12px; text-align:center;">${actualSavings.toLocaleString()} ₽<br><span style="font-size:11px;">(${savingsPercent}%)</span></td>
+                            <td style="padding:12px; text-align:center; color:${savingsColor};">${savingsStatus}<br><span style="font-size:11px;">${savingsDiffText}</span></td>
+                          </tr>`;
+                html += `</table><br>`;
+                
+                // Рекомендации
+                html += `<strong>💡 Рекомендации:</strong><br>`;
+                if (actualNeeds > idealNeeds) {
+                    html += `• Обязательные расходы превышают норму на ${(actualNeeds - idealNeeds).toLocaleString()} ₽. Пересмотрите траты на ЖКХ, транспорт, связь.<br>`;
+                }
+                if (actualWants > idealWants) {
+                    html += `• Расходы на желания превышают норму на ${(actualWants - idealWants).toLocaleString()} ₽. Сократите кафе, развлечения, спонтанные покупки.<br>`;
+                }
+                if (actualSavings < idealSavings) {
+                    html += `• Накопления меньше нормы на ${(idealSavings - actualSavings).toLocaleString()} ₽. Откладывайте деньги в первый день после зарплаты.<br>`;
+                }
+                if (actualNeeds <= idealNeeds && actualWants <= idealWants && actualSavings >= idealSavings) {
+                    html += `• Идеальный баланс! Так держать!<br>`;
+                }
+                
+                showResult('budgetResult', html, false);
+            } else {
+                showResult('budgetResult', '❌ Ошибка расчёта бюджета', true);
+            }
+        } catch(e) { 
+            showResult('budgetResult', '❌ Ошибка: ' + e.message, true); 
+        }
+    };
+ 
+    // EXCEL АНАЛИЗ
+    document.getElementById('uploadExcelBtn').onclick = async () => {
+        const file = document.getElementById('excelFile').files[0];
+        if (!file) { showResult('uploadStatus', 'Выберите файл', true); return; }
+        const statusDiv = document.getElementById('uploadStatus');
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = '⏳ Загрузка...';
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+            const res = await fetch('/excel/upload', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (res.ok && data.status === 'ok') {
+                fullData = data;
+                statusDiv.innerHTML = '✅ Анализ завершён!';
+                document.getElementById('analysisContainer').style.display = 'block';
+                initMonthFilter();
+                displayAnalysis();
+            } else { statusDiv.innerHTML = '❌ Ошибка: ' + JSON.stringify(data); }
+        } catch(e) { statusDiv.innerHTML = '❌ Ошибка: ' + e.message; }
+    };
+    
+    document.getElementById('refreshAnalysis').onclick = () => displayAnalysis();
+    document.getElementById('familySizeFilter').onchange = () => { updateComparison(); updateStatsCards(); };
+    
+    function initMonthFilter() {
+        const filter = document.getElementById('monthFilter');
+        filter.innerHTML = '<option value="all">Все месяцы</option>';
+        if (fullData && fullData.months) {
+            fullData.months.forEach(month => {
+                const opt = document.createElement('option');
+                opt.value = month;
+                opt.textContent = month;
+                filter.appendChild(opt);
+            });
+            filter.onchange = () => displayAnalysis();
+        }
+    }
+    
+    function getCurrentData() {
+        const selectedMonth = document.getElementById('monthFilter').value;
+        if (selectedMonth === 'all') {
+            return { tableData: fullData.table_data, chartData: fullData.chart_data, total: fullData.total, months: fullData.months, totalsByMonth: fullData.totals_by_month, monthlyAvg: fullData.monthly_avg, isAllMonths: true };
+        } else {
+            const monthData = fullData.months_table_data.find(m => m.month === selectedMonth);
+            if (monthData) {
+                const sorted = [...monthData.categories].sort((a,b) => b.amount - a.amount);
+                return { tableData: sorted, chartData: sorted.slice(0, 8), total: monthData.total, months: [selectedMonth], totalsByMonth: [monthData.total], monthlyAvg: {}, isAllMonths: false, selectedMonth: selectedMonth };
+            }
+        }
+        return null;
+    }
+    
+    function displayAnalysis() {
+        if (!fullData) return;
+        const data = getCurrentData();
+        if (!data) return;
+        updateStatsCards(data);
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        data.tableData.forEach(row => { tbody.innerHTML += `<tr><td><strong>${row.category}</strong></td><td>${row.amount.toLocaleString()} ₽</td><td>${row.percent}%</td>`; });
+        if (monthlyChart) monthlyChart.destroy();
+        monthlyChart = new Chart(document.getElementById('monthlyChart'), { type: data.months.length > 1 ? 'line' : 'bar', data: { labels: data.months, datasets: [{ label: 'Расходы (₽)', data: data.totalsByMonth, borderColor: '#c47a5e', backgroundColor: '#c47a5e20', fill: true }] } });
+        if (categoryChart) categoryChart.destroy();
+        categoryChart = new Chart(document.getElementById('expenseChart'), { type: 'pie', data: { labels: data.chartData.map(d => d.category), datasets: [{ data: data.chartData.map(d => d.amount), backgroundColor: ['#c47a5e','#e7b183','#a5c882','#8b7a66'] }] } });
+        updateComparison();
+        document.getElementById('recommendationsBox').innerHTML = '<strong>💡 Рекомендации</strong><br>' + (fullData.recommendations?.map(r => `• ${r}<br>`).join('') || 'Нет');
+    }
+    
+    function updateStatsCards(data) {
+        const statsDiv = document.getElementById('statsCards');
+        const familySize = parseInt(document.getElementById('familySizeFilter').value) || 1;
+        if (data.isAllMonths) {
+            // ТОП-3 категории
+            const top3 = data.tableData.slice(0, 3);
+            let topHtml = '';
+            top3.forEach((cat, idx) => {
+                topHtml += `<div style="margin-top:8px;"><span style="color:#c47a5e;">${idx+1}.</span> ${cat.category}: ${cat.amount.toLocaleString()} ₽ (${cat.percent}%)</div>`;
+            });
+            statsDiv.innerHTML = `
+                <div class="stat-card"><div class="value">${data.total.toLocaleString()} ₽</div><div class="label">Общие расходы за период</div></div>
+                <div class="stat-card"><div class="value">${data.months.length}</div><div class="label">Месяцев</div></div>
+                <div class="stat-card"><div class="value">${Math.round(data.total / data.months.length).toLocaleString()} ₽</div><div class="label">Среднемесячные расходы</div></div>
+                <div class="stat-card"><div class="value">🏆 ТОП-3</div><div class="label">${topHtml}</div></div>
+            `;
+        } else {
+            const top3 = data.tableData.slice(0, 3);
+            let topHtml = '';
+            top3.forEach((cat, idx) => {
+                topHtml += `<div style="margin-top:8px;"><span style="color:#c47a5e;">${idx+1}.</span> ${cat.category}: ${cat.amount.toLocaleString()} ₽ (${cat.percent}%)</div>`;
+            });
+            statsDiv.innerHTML = `
+                <div class="stat-card"><div class="value">${data.total.toLocaleString()} ₽</div><div class="label">Расходы за ${data.selectedMonth}</div></div>
+                <div class="stat-card"><div class="value">🏆 ТОП-3</div><div class="label">${topHtml}</div></div>
+                <div class="stat-card"><div class="value">${data.tableData.length}</div><div class="label">Категорий расходов</div></div>
+            `;
+        }
+    }
+    
+    function updateComparison() {
+        if (!fullData) return;
+        const familySize = parseInt(document.getElementById('familySizeFilter').value) || 1;
+        const selectedMonth = document.getElementById('monthFilter').value;
+        let monthlyAvg = {};
+        if (selectedMonth === 'all') monthlyAvg = fullData.monthly_avg;
+        else { const monthData = fullData.months_table_data.find(m => m.month === selectedMonth); if (monthData) monthData.categories.forEach(cat => { monthlyAvg[cat.category] = cat.amount; }); }
+        const body = document.getElementById('comparisonBody');
+        body.innerHTML = '';
+        for (const [cat, my] of Object.entries(monthlyAvg)) {
+            const russia = russianAverages[cat] || 0;
+            const perPerson = Math.round(my / familySize);
+            if (russia > 0) {
+                const diff = Math.round((perPerson - russia) / russia * 100);
+                body.innerHTML += `<tr><td style="padding:8px;"><strong>${cat}</strong></td><td style="padding:8px;">${perPerson.toLocaleString()} ₽</td><td style="padding:8px;">${russia.toLocaleString()} ₽</td><td style="padding:8px; ${diff > 0 ? 'color:#c47a5e;' : 'color:#4caf50;'}">${diff > 0 ? '+' : ''}${diff}%</td></tr>`;
+            }
+        }
+    }
+    
+    // Переключение вкладок
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.getElementById(btn.dataset.tab).classList.add('active');
+        };
+    });
+    
+    if (token) console.log('Токен загружен');
+</script>
+</body>
+</html>

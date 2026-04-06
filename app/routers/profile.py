@@ -1,36 +1,59 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+import json
 from app.database import get_db
-from app.models import UserProfile
 from app.auth import get_current_user
-from pydantic import BaseModel
-from typing import List, Optional
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
-class ProfileCreate(BaseModel):
-    first_name: Optional[str] = None
-    age: Optional[int] = None
-    hobbies: List[str] = []
-    family_members: List[dict] = []
-    financial_goals: List[str] = []
-
 @router.get("/")
-async def get_profile(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
-    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
-    if not profile:
-        return {"user_id": current_user.id}
-    return profile
+def get_profile(current_user: dict = Depends(get_current_user)):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM profiles WHERE user_id = ?", (current_user["id"],))
+        profile = cursor.fetchone()
+        
+        if not profile:
+            cursor.execute(
+                "INSERT INTO profiles (user_id, hobbies, family_size) VALUES (?, ?, ?)",
+                (current_user["id"], "[]", 1)
+            )
+            conn.commit()
+            cursor.execute("SELECT * FROM profiles WHERE user_id = ?", (current_user["id"],))
+            profile = cursor.fetchone()
+        
+        return {
+            "first_name": profile["first_name"],
+            "age": profile["age"],
+            "hobbies": json.loads(profile["hobbies"]) if profile["hobbies"] else [],
+            "family_size": profile["family_size"] or 1
+        }
 
 @router.post("/")
-async def create_or_update_profile(data: ProfileCreate, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
-    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
-    if profile:
-        for key, value in data.dict().items():
-            setattr(profile, key, value)
-    else:
-        profile = UserProfile(user_id=current_user.id, **data.dict())
-        db.add(profile)
-    db.commit()
-    db.refresh(profile)
-    return profile
+def update_profile(
+    first_name: str = None,
+    age: int = None,
+    hobbies: str = None,
+    family_size: int = 1,
+    current_user: dict = Depends(get_current_user)
+):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM profiles WHERE user_id = ?", (current_user["id"],))
+        exists = cursor.fetchone()
+        
+        hobbies_json = hobbies if hobbies else "[]"
+        
+        if exists:
+            cursor.execute("""
+                UPDATE profiles 
+                SET first_name = ?, age = ?, hobbies = ?, family_size = ?
+                WHERE user_id = ?
+            """, (first_name, age, hobbies_json, family_size, current_user["id"]))
+        else:
+            cursor.execute("""
+                INSERT INTO profiles (user_id, first_name, age, hobbies, family_size)
+                VALUES (?, ?, ?, ?, ?)
+            """, (current_user["id"], first_name, age, hobbies_json, family_size))
+        
+        conn.commit()
+        return {"message": "Profile updated"}

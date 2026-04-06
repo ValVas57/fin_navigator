@@ -1,41 +1,13 @@
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv/
-*.egg-info/
-dist/
-build/
-
-# Database
+*.pyc
+.env
 *.db
 *.sqlite
-*.sqlite3
-data/*.db
-!data/.gitkeep
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Uploads
-uploads/
-temp/
+venv/
+env/
+.venv/
+*.xlsx
+*.xls
+!Затраты.xls
+debug_uploaded.xlsx

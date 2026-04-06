@@ -1,12 +1,12 @@
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 
 load_dotenv()
 
-class Settings:
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-production")
-    DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+class Config:
+    SECRET_KEY = os.getenv("SECRET_KEY", "default-secret-key-change-me")
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fin_navigator.db")
+    ALGORITHM = os.getenv("ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
-settings = Settings()
+config = Config()

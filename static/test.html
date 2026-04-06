@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Тест регистрации</title>
+</head>
+<body>
+    <h1>Тест регистрации ФинНавигатор</h1>
+    
+    <div style="margin: 20px; padding: 20px; border: 1px solid #ccc;">
+        <h3>Регистрация</h3>
+        <input type="email" id="email" placeholder="Email" style="width: 300px; margin: 5px; padding: 8px;"><br>
+        <input type="password" id="password" placeholder="Пароль" style="width: 300px; margin: 5px; padding: 8px;"><br>
+        <input type="text" id="full_name" placeholder="Имя" style="width: 300px; margin: 5px; padding: 8px;"><br>
+        <button onclick="register()" style="margin: 10px; padding: 10px 20px;">Зарегистрироваться</button>
+        <button onclick="login()" style="margin: 10px; padding: 10px 20px;">Войти</button>
+    </div>
+    
+    <div id="result" style="margin: 20px; padding: 20px; background: #f0f0f0; white-space: pre-wrap; font-family: monospace;"></div>
+    
+    <script>
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const full_name = document.getElementById('full_name').value;
+            
+            const formData = new URLSearchParams();
+            formData.append('email', email);
+            formData.append('password', password);
+            formData.append('full_name', full_name);
+            
+            document.getElementById('result').innerHTML = 'Отправка запроса...';
+            
+            try {
+                const res = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+                
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch(e) {
+                    data = { raw: text };
+                }
+                
+                document.getElementById('result').innerHTML = 
+                    'Статус: ' + res.status + '\n' +
+                    'Ответ: ' + JSON.stringify(data, null, 2);
+            } catch(e) {
+                document.getElementById('result').innerHTML = 'Ошибка: ' + e.message;
+            }
+        }
+        
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const formData = new URLSearchParams();
+            formData.append('username', email);
+            formData.append('password', password);
+            
+            document.getElementById('result').innerHTML = 'Отправка запроса...';
+            
+            try {
+                const res = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+                
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch(e) {
+                    data = { raw: text };
+                }
+                
+                document.getElementById('result').innerHTML = 
+                    'Статус: ' + res.status + '\n' +
+                    'Ответ: ' + JSON.stringify(data, null, 2);
+                    
+                if (data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                    document.getElementById('result').innerHTML += '\n\n✅ Токен сохранён!';
+                }
+            } catch(e) {
+                document.getElementById('result').innerHTML = 'Ошибка: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>

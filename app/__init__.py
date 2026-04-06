@@ -1,1 +1,1 @@
-# FinNavigator - AI assistant for personal finance
+# Пустой файл, делает папку модулем

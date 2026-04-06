@@ -1,6 +1,8 @@
+Полная структура проекта
+text
 fin_navigator/
 ├── app/
-│   ├── __init__.py          (пустой файл)
+│   ├── __init__.py
 │   ├── main.py
 │   ├── config.py
 │   ├── database.py
@@ -15,16 +17,15 @@ fin_navigator/
 │   └── routers/
 │       ├── __init__.py
 │       ├── auth.py
-│       ├── upload.py
 │       ├── profile.py
 │       ├── goals.py
 │       ├── chat.py
-│       └── recommendations.py
+│       └── upload.py
 ├── static/
-│   └── index.html
+│   └── index.html (ваш новый файл)
 ├── data/
 │   └── .gitkeep
 ├── .env
 ├── .gitignore
 ├── requirements.txt
-└── Затраты.xls              (ваш файл с расходами)
+└── Затраты.xls (ваш тестовый файл)

@@ -1,76 +1,59 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-from sqlalchemy.orm import Session
-from typing import Dict, Any
-import tempfile
-import os
-import uuid
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from app.services.parser import parse_excel
+from app.services.budget_analyzer import analyze_expenses, calculate_forecast, calculate_503020
+import traceback
 
-from app.database import get_db
-from app.services.parser import quick_parse, ExcelParser
-from app.schemas import UploadPreviewResponse, UploadConfirmRequest
-from app.models import Transaction, Category, TransactionSource
+router = APIRouter(prefix="/excel", tags=["excel"])
 
-router = APIRouter(prefix="/upload", tags=["upload"])
-
-
-@router.post("/preview")
-async def preview_upload(
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db)
-) -> UploadPreviewResponse:
-    """Загружает файл и возвращает предпросмотр данных"""
-    
-    # Проверяем расширение
-    if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(400, "Поддерживаются только файлы Excel (.xlsx, .xls)")
-    
-    # Сохраняем временный файл
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
+@router.post("/upload")
+async def upload_excel(file: UploadFile = File(...)):
+    print(f"=== ПОЛУЧЕН ФАЙЛ: {file.filename} ===")
+    print(f"Content-Type: {file.content_type}")
     
     try:
-        # Парсим файл
-        parser = ExcelParser(tmp_path)
-        preview = parser.get_preview_data()
+        contents = await file.read()
+        print(f"Размер файла: {len(contents)} байт")
         
-        # Получаем системные категории из БД
-        db_categories = db.query(Category).filter(Category.is_income == False).all()
-        system_categories = [cat.name for cat in db_categories]
+        # Сохраняем файл для отладки
+        with open("debug_uploaded.xlsx", "wb") as f:
+            f.write(contents)
+        print("Файл сохранён как debug_uploaded.xlsx")
         
-        return UploadPreviewResponse(
-            months=preview['months'],
-            categories=preview['categories'],
-            total_amount=preview['total_amount'],
-            anomalies=preview['anomalies'],
-            system_categories=system_categories,
-            suggested_mapping=preview['suggested_mapping']
-        )
+        transactions = parse_excel(contents, file.filename)
+        print(f"Получено транзакций: {len(transactions)}")
+        
+        if not transactions:
+            raise Exception("Не удалось извлечь данные из файла")
+        
+        result = analyze_expenses(transactions)
+        print("Анализ завершён успешно")
+        return result
         
     except Exception as e:
-        raise HTTPException(500, f"Ошибка при разборе файла: {str(e)}")
-    finally:
-        os.unlink(tmp_path)
+        print(f"ОШИБКА: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
 
+@router.post("/forecast")
+async def get_forecast(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        transactions = parse_excel(contents, file.filename)
+        result = calculate_forecast(transactions)
+        return result
+    except Exception as e:
+        print(f"ОШИБКА forecast: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
 
-@router.post("/confirm")
-async def confirm_upload(
-    request: UploadConfirmRequest,
-    user_id: int = 1,  # TODO: из аутентификации
-    db: Session = Depends(get_db)
-):
-    """Подтверждает импорт с выбранным маппингом категорий"""
-    
-    # Сохраняем файл (в реальном приложении файл уже должен быть загружен)
-    # Здесь упрощённо: ожидаем, что файл уже загружен через preview
-    
-    # Получаем категории из БД
-    categories = {
-        cat.name: cat.id 
-        for cat in db.query(Category).all()
-    }
-    
-    # TODO: здесь должна быть логика импорта с использованием переданного маппинга
-    
-    return {"status": "success", "message": "Импорт выполнен успешно"}
+@router.post("/budget_distribution")
+async def get_budget_distribution(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        transactions = parse_excel(contents, file.filename)
+        result = calculate_503020(transactions)
+        return result
+    except Exception as e:
+        print(f"ОШИБКА budget: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")

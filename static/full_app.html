@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>ФинНавигатор - Полная версия</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #fef8f0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #c47a5e; margin-bottom: 20px; }
+        
+        .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; border-bottom: 1px solid #e5d9ce; padding-bottom: 12px; }
+        .tab-btn { background: #f0eae2; border: none; padding: 8px 20px; border-radius: 40px; font-size: 15px; cursor: pointer; }
+        .tab-btn.active { background: #c47a5e; color: white; }
+        .tab-pane { display: none; background: white; border-radius: 28px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .tab-pane.active { display: block; }
+        
+        input, textarea, select { width: 100%; padding: 12px 14px; margin-bottom: 16px; border: 1px solid #e0d4c8; border-radius: 20px; background: #fffdf9; }
+        button { background: #c47a5e; color: white; border: none; padding: 10px 22px; border-radius: 40px; cursor: pointer; margin-right: 12px; margin-bottom: 10px; }
+        .output { background: #fef6ed; padding: 16px; border-radius: 20px; margin-top: 20px; border: 1px solid #f0e2d6; max-height: 500px; overflow: auto; }
+        .error { background: #ffe6e5; color: #b33; }
+        
+        .flex-row { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+        .chart-box { flex: 1; min-width: 260px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: #fef6ed; padding: 20px; border-radius: 20px; text-align: center; }
+        .stat-card .value { font-size: 28px; font-weight: bold; color: #c47a5e; }
+        .stats-table { width: 100%; border-collapse: collapse; }
+        .stats-table th, .stats-table td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #efe2d6; }
+        .filter-bar { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+        .family-size { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+        .family-size input { width: 80px; margin: 0; }
+        .positive { color: #c47a5e; }
+        .negative { color: #4caf50; }
+        
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px; margin-top: 25px; }
+        .feature-card { background: #fffcf8; border-radius: 20px; padding: 18px; border: 1px solid #efe2d6; cursor: pointer; }
+        .feature-card:hover { border-color: #c47a5e; }
+        .feature-card h3 { color: #c47a5e; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🧭 ФинНавигатор</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="register">📝 Регистрация</button>
+        <button class="tab-btn" data-tab="login">🔐 Вход</button>
+        <button class="tab-btn" data-tab="profile">👤 Профиль</button>
+        <button class="tab-btn" data-tab="goals">🎯 Цели</button>
+        <button class="tab-btn" data-tab="chat">💬 AI-чат</button>
+        <button class="tab-btn" data-tab="excel">📊 Excel</button>
+        <button class="tab-btn" data-tab="education">📚 Образование</button>
+        <button class="tab-btn" data-tab="forecast">📈 Прогнозы</button>
+        <button class="tab-btn" data-tab="budget">💰 Бюджет</button>
+    </div>
+
+    <!-- Регистрация -->
+    <div id="register" class="tab-pane active">
+        <h2>Создать аккаунт</h2>
+        <input type="email" id="regEmail" placeholder="Email">
+        <input type="password" id="regPassword" placeholder="Пароль">
+        <input type="text" id="regFullName" placeholder="Ваше имя">
+        <button id="doRegister">Зарегистрироваться</button>
+        <div id="regResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Вход -->
+    <div id="login" class="tab-pane">
+        <h2>Вход в аккаунт</h2>
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Пароль">
+        <button id="doLogin">Войти</button>
+        <div id="loginResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Профиль -->
+    <div id="profile" class="tab-pane">
+        <h2>Мой профиль</h2>
+        <input type="text" id="firstName" placeholder="Имя">
+        <input type="number" id="age" placeholder="Возраст">
+        <input type="text" id="hobbies" placeholder="Хобби (через запятую)">
+        <input type="number" id="familySize" placeholder="Количество членов семьи" value="1">
+        <button id="getProfile">Загрузить профиль</button>
+        <button id="updateProfile">Сохранить профиль</button>
+        <div id="profileResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Цели -->
+    <div id="goals" class="tab-pane">
+        <h2>Финансовые цели</h2>
+        <input type="text" id="goalName" placeholder="Название цели">
+        <input type="number" id="goalAmount" placeholder="Сумма (₽)">
+        <input type="date" id="goalDeadline">
+        <button id="createGoal">Создать цель</button>
+        <button id="listGoals">Мои цели</button>
+        <div id="goalsResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- AI-чат -->
+    <div id="chat" class="tab-pane">
+        <h2>🤖 Финансовый советник</h2>
+        <textarea id="chatMessage" rows="3" placeholder="Например: «Хочу накопить 300 000 ₽ за год»"></textarea>
+        <button id="sendChat">Спросить AI</button>
+        <div id="chatResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Excel анализ -->
+    <div id="excel" class="tab-pane">
+        <h2>📊 Анализ расходов (Excel)</h2>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; margin-bottom: 20px;">
+            <input type="file" id="excelFile" accept=".xls,.xlsx" style="width: auto;">
+            <button id="uploadExcelBtn">📂 Загрузить и анализировать</button>
+            <div class="family-size">
+                <label>👨‍👩‍👧 Размер семьи:</label>
+                <input type="number" id="familySizeFilter" value="1" min="1">
+            </div>
+        </div>
+        <div id="uploadStatus" class="output" style="display:none;"></div>
+        
+        <div id="analysisContainer" style="display:none;">
+            <div class="filter-bar">
+                <label>📅 Фильтр по месяцу:</label>
+                <select id="monthFilter"><option value="all">Все месяцы</option></select>
+                <button id="refreshAnalysis">Обновить</button>
+            </div>
+            <div class="stats" id="statsCards"></div>
+            <div class="flex-row">
+                <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+                <div class="chart-box"><canvas id="expenseChart"></canvas></div>
+            </div>
+            <div>
+                <h3>📋 Детализация расходов</h3>
+                <table class="stats-table" id="statsTable">
+                    <thead><tr><th>Категория</th><th>Сумма (₽)</th><th>Доля (%)</th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div id="comparisonContainer">
+                <h3>📊 Сравнение с Россией</h3>
+                <table class="stats-table" id="comparisonTable">
+                    <thead><tr><th>Категория</th><th>Мои (₽/мес)</th><th>РФ (₽)</th><th>Отклонение</th></tr></thead>
+                    <tbody id="comparisonBody"></tbody>
+                </table>
+            </div>
+            <div id="recommendationsBox"></div>
+        </div>
+    </div>
+
+    <!-- Образование -->
+    <div id="education" class="tab-pane">
+        <h2>📚 Образование и карьера</h2>
+        <button id="getRecommendations">Получить рекомендации</button>
+        <div id="educationResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Прогнозы -->
+    <div id="forecast" class="tab-pane">
+        <h2>📈 Прогнозы и риски</h2>
+        <button id="getForecast">Анализировать риски</button>
+        <div id="forecastResult" class="output" style="display:none;"></div>
+    </div>
+
+    <!-- Бюджет -->
+    <div id="budget" class="tab-pane">
+        <h2>💰 Бюджет 50/30/20</h2>
+        <button id="getBudgetDistribution">Рассчитать распределение</button>
+        <div id="budgetResult" class="output" style="display:none;"></div>
+    </div>
+
+    <div class="feature-grid">
+        <div class="feature-card" data-tab="excel"><h3>📊 Анализ расходов</h3></div>
+        <div class="feature-card" data-tab="goals"><h3>🎯 Цели</h3></div>
+        <div class="feature-card" data-tab="chat"><h3>🤖 Умный чат</h3></div>
+        <div class="feature-card" data-tab="education"><h3>📚 Карьера</h3></div>
+        <div class="feature-card" data-tab="forecast"><h3>📈 Прогнозы</h3></div>
+        <div class="feature-card" data-tab="budget"><h3>💰 50/30/20</h3></div>
+    </div>
+</div>
+
+<script>
+    let token = localStorage.getItem('access_token') || null;
+    let fullData = null;
+    let monthlyChart = null, categoryChart = null;
+    
+    const russianAverages = {
+        'продукты': 18000, 'алкоголь': 3000, 'лекарства': 2000, 'машина': 5000,
+        'хобби': 3000, 'дача': 2000, 'квартира': 7000, 'лечение': 3000,
+        'образование': 4000, 'подарки': 5000, 'домаш.животн.': 1500, 'одежда': 4000,
+        'обувь': 2000, 'бытовая химия': 1500, 'косметические средства': 2000,
+        'бытовая техника': 3000, 'тлф, пк': 3000
+    };
+    
+    function showResult(elId, msg, isError = false) {
+        const el = document.getElementById(elId);
+        if (el) { el.style.display = 'block'; el.className = 'output ' + (isError ? 'error' : ''); el.innerHTML = msg; }
+    }
+ // Регистрация
+document.getElementById('doRegister').onclick = async () => {
+        const fd = new URLSearchParams();
+        fd.append('email', document.getElementById('regEmail').value);
+        fd.append('password', document.getElementById('regPassword').value);
+        fd.append('full_name', document.getElementById('regFullName').value);
+        try {
+            const res = await fetch('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: fd });
+            const data = await res.json();
+            if (res.ok) showResult('regResult', '✅ Регистрация успешна!', false);
+            else showResult('regResult', '❌ ' + (data.detail || 'Ошибка'), true);
+        } catch(e) { showResult('regResult', '❌ Ошибка', true); }
+    };
+    
+    // Вход
+    document.getElementById('doLogin').onclick = async () => {
+        const fd = new URLSearchParams();
+        fd.append('username', document.getElementById('loginEmail').value);
+        fd.append('password', document.getElementById('loginPassword').value);
+        try {
+            const res = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: fd });
+            const data = await res.json();
+            if (res.ok) {
+                token = data.access_token;
+                localStorage.setItem('access_token', token);
+                showResult('loginResult', '✅ Вход выполнен!', false);
+            } else showResult('loginResult', '❌ ' + (data.detail || 'Ошибка'), true);
+        } catch(e) { showResult('loginResult', '❌ Ошибка', true); }
+    };
+    
+    // Профиль
+    document.getElementById('getProfile').onclick = async () => {
+        if (!token) { showResult('profileResult', 'Сначала войдите', true); return; }
+        try {
+            const res = await fetch('/profile/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('firstName').value = data.first_name || '';
+                document.getElementById('age').value = data.age || '';
+                document.getElementById('hobbies').value = (data.hobbies || []).join(', ');
+                document.getElementById('familySize').value = data.family_size || 1;
+                showResult('profileResult', '✅ Профиль загружен', false);
+            } else showResult('profileResult', '❌ Ошибка', true);
+        } catch(e) { showResult('profileResult', '❌ Ошибка', true); }
+    };
+    
+    document.getElementById('updateProfile').onclick = async () => {
+        if (!token) { showResult('profileResult', 'Сначала войдите', true); return; }
+        const fd = new URLSearchParams();
+        fd.append('first_name', document.getElementById('firstName').value);
+        fd.append('age', document.getElementById('age').value);
+        fd.append('hobbies', document.getElementById('hobbies').value);
+        fd.append('family_size', document.getElementById('familySize').value);
+        try {
+            const res = await fetch('/profile/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Bearer ${token}` }, body: fd });
+            if (res.ok) showResult('profileResult', '✅ Профиль обновлён!', false);
+            else showResult('profileResult', '❌ Ошибка', true);
+        } catch(e) { showResult('profileResult', '❌ Ошибка', true); }
+    };
+    
+    // Цели
+document.getElementById('createGoal').onclick = async () => {
+    if (!token) { showResult('goalsResult', 'Сначала войдите', true); return; }
+    const fd = new URLSearchParams();
+    fd.append('name', document.getElementById('goalName').value);
+    fd.append('target_amount', document.getElementById('goalAmount').value);
+    const deadline = document.getElementById('goalDeadline').value;
+    if (deadline) fd.append('deadline', deadline);
+    try {
+        const res = await fetch('/goals/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Bearer ${token}` }, body: fd });
+        const data = await res.json();
+        if (res.ok) showResult('goalsResult', '✅ Цель создана!', false);
+        else showResult('goalsResult', '❌ ' + (data.detail || 'Ошибка'), true);
+    } catch(e) { showResult('goalsResult', '❌ Ошибка: ' + e.message, true); }
+};
+
+    document.getElementById('listGoals').onclick = async () => {
+        if (!token) { showResult('goalsResult', 'Сначала войдите', true); return; }
+        try {
+            const res = await fetch('/goals/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (res.ok && data.length) {
+                let msg = 'Ваши цели:\n';
+                data.forEach(g => msg += `• ${g.name}: ${g.current_amount || 0}/${g.target_amount} ₽\n`);
+                showResult('goalsResult', msg, false);
+            } else if (res.ok) showResult('goalsResult', 'У вас пока нет целей', false);
+            else showResult('goalsResult', '❌ Ошибка', true);
+        } catch(e) { showResult('goalsResult', '❌ Ошибка', true); }
+    };
+    
+    // AI-чат
+    document.getElementById('sendChat').onclick = async () => {
+        const fd = new URLSearchParams();
+        fd.append('message', document.getElementById('chatMessage').value);
+        try {
+            const res = await fetch('/chat/message', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: fd });
+            const data = await res.json();
+            if (res.ok) showResult('chatResult', '🤖 ' + (data.response || 'Готово'), false);
+            else showResult('chatResult', 'Ошибка AI', true);
+        } catch(e) { showResult('chatResult', 'Ошибка сети', true); }
+    };
+    
+    // Образование
+    document.getElementById('getRecommendations').onclick = async () => {
+        if (!token) { showResult('educationResult', 'Сначала войдите', true); return; }
+        const fd = new URLSearchParams();
+        fd.append('hobbies', document.getElementById('hobbies').value);
+        try {
+            const res = await fetch('/chat/recommendations', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Bearer ${token}` }, body: fd });
+            const data = await res.json();
+            if (res.ok && data.recommendations) {
+                let html = '<strong>🎓 Рекомендации:</strong><br><br>';
+                data.recommendations.forEach(r => { html += `<div><b>${r.title}</b><br>📘 ${r.description}<br>⏱️ ${r.duration}<br>💰 ${r.cost?.toLocaleString()} ₽<br>💵 ${r.potential_income}</div><br>`; });
+                showResult('educationResult', html);
+            } else showResult('educationResult', 'Ошибка', true);
+        } catch(e) { showResult('educationResult', 'Ошибка', true); }
+    };
+    
+    // Прогнозы
+    document.getElementById('getForecast').onclick = async () => {
+        const file = document.getElementById('excelFile').files[0];
+        if (!file) { showResult('forecastResult', 'Сначала загрузите Excel', true); return; }
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+            const res = await fetch('/excel/forecast', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (res.ok && data.status === 'ok') {
+                const f = data.forecast;
+                let html = `<strong>📊 Прогноз</strong><br>💰 Среднемесячные: ${f.avg_monthly.toLocaleString()} ₽<br>🛡️ Резерв: ${f.recommended_reserve.toLocaleString()} ₽<br>⚠️ Риск: ${f.risk_level}<br><br>`;
+                if (f.risks.length) html += `<strong>⚠️ Рекомендации:</strong><br>${f.risks.join('<br>')}`;
+                else html += '✅ Рисков не обнаружено';
+                showResult('forecastResult', html);
+            } else showResult('forecastResult', 'Ошибка', true);
+        } catch(e) { showResult('forecastResult', 'Ошибка', true); }
+    };
+    
+    // Бюджет
+    document.getElementById('getBudgetDistribution').onclick = async () => {
+        const file = document.getElementById('excelFile').files[0];
+        if (!file) { showResult('budgetResult', 'Сначала загрузите Excel', true); return; }
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+            const res = await fetch('/excel/budget_distribution', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (res.ok && data.status === 'ok') {
+                let html = `<strong>💰 50/30/20</strong><br>📊 Общие: ${data.total.toLocaleString()} ₽<br>✅ Обязательные (50%): ${data.needs.actual.toLocaleString()} ₽ (${data.needs.percent}%)<br>🎯 Желания (30%): ${data.wants.actual.toLocaleString()} ₽ (${data.wants.percent}%)<br>💰 Накопления (20%): ${data.savings.actual.toLocaleString()} ₽ (${data.savings.percent}%)<br><br>`;
+                if (data.recommendations.length) html += `<strong>💡 Советы:</strong><br>${data.recommendations.join('<br>')}`;
+                else html += '✅ Идеальный баланс!';
+                showResult('budgetResult', html);
+            } else showResult('budgetResult', 'Ошибка', true);
+        } catch(e) { showResult('budgetResult', 'Ошибка', true); }
+    };
+ // ========== EXCEL АНАЛИЗ ==========
+    document.getElementById('uploadExcelBtn').onclick = async () => {
+        const file = document.getElementById('excelFile').files[0];
+        if (!file) { showResult('uploadStatus', 'Выберите файл', true); return; }
+        const statusDiv = document.getElementById('uploadStatus');
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = '⏳ Загрузка...';
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+            const res = await fetch('/excel/upload', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (res.ok && data.status === 'ok') {
+                fullData = data;
+                statusDiv.innerHTML = '✅ Анализ завершён!';
+                document.getElementById('analysisContainer').style.display = 'block';
+                initMonthFilter();
+                displayAnalysis();
+            } else { statusDiv.innerHTML = '❌ Ошибка'; }
+        } catch(e) { statusDiv.innerHTML = '❌ Ошибка'; }
+    };
+    
+    document.getElementById('refreshAnalysis').onclick = () => displayAnalysis();
+    document.getElementById('familySizeFilter').onchange = () => { updateComparison(); updateStatsCards(); };
+    
+    function initMonthFilter() {
+        const filter = document.getElementById('monthFilter');
+        filter.innerHTML = '<option value="all">Все месяцы</option>';
+        if (fullData && fullData.months) {
+            fullData.months.forEach(month => {
+                const opt = document.createElement('option');
+                opt.value = month;
+                opt.textContent = month;
+                filter.appendChild(opt);
+            });
+            filter.onchange = () => displayAnalysis();
+        }
+    }
+    
+    function getCurrentData() {
+        const selectedMonth = document.getElementById('monthFilter').value;
+        const familySize = parseInt(document.getElementById('familySizeFilter').value) || 1;
+        if (selectedMonth === 'all') {
+            return { tableData: fullData.table_data, chartData: fullData.chart_data, total: fullData.total, months: fullData.months, totalsByMonth: fullData.totals_by_month, monthlyAvg: fullData.monthly_avg, familySize: familySize, isAllMonths: true };
+        } else {
+            const monthData = fullData.months_table_data.find(m => m.month === selectedMonth);
+            if (monthData) {
+                const sorted = [...monthData.categories].sort((a,b) => b.amount - a.amount);
+                return { tableData: sorted, chartData: sorted.slice(0, 8), total: monthData.total, months: [selectedMonth], totalsByMonth: [monthData.total], monthlyAvg: {}, familySize: familySize, isAllMonths: false, selectedMonth: selectedMonth };
+            }
+        }
+        return null;
+    }
+    
+    function displayAnalysis() {
+        if (!fullData) return;
+        const data = getCurrentData();
+        if (!data) return;
+        updateStatsCards(data);
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        data.tableData.forEach(row => { tbody.innerHTML += `<tr><td><strong>${row.category}</strong></td><td>${row.amount.toLocaleString()} ₽</td><td>${row.percent}%</td></tr>`; });
+        if (monthlyChart) monthlyChart.destroy();
+        monthlyChart = new Chart(document.getElementById('monthlyChart'), { type: data.months.length > 1 ? 'line' : 'bar', data: { labels: data.months, datasets: [{ label: 'Расходы (₽)', data: data.totalsByMonth, borderColor: '#c47a5e', backgroundColor: '#c47a5e20', fill: true }] } });
+        if (categoryChart) categoryChart.destroy();
+        categoryChart = new Chart(document.getElementById('expenseChart'), { type: 'pie', data: { labels: data.chartData.map(d => d.category), datasets: [{ data: data.chartData.map(d => d.amount), backgroundColor: ['#c47a5e','#e7b183','#a5c882','#8b7a66'] }] } });
+        updateComparison();
+        document.getElementById('recommendationsBox').innerHTML = '<strong>💡 Рекомендации</strong><br>' + (fullData.recommendations?.map(r => `• ${r}<br>`).join('') || 'Нет');
+    }
+    
+    function updateStatsCards(data) {
+        const statsDiv = document.getElementById('statsCards');
+        if (data.isAllMonths) {
+            statsDiv.innerHTML = `<div class="stat-card"><div class="value">${data.total.toLocaleString()} ₽</div><div>Общие расходы</div></div><div class="stat-card"><div class="value">${data.months.length}</div><div>Месяцев</div></div><div class="stat-card"><div class="value">${data.tableData.length}</div><div>Категорий</div></div><div class="stat-card"><div class="value">${Math.round(data.total / data.months.length).toLocaleString()} ₽</div><div>Ср. в месяц</div></div>`;
+        } else {
+            const topCat = data.tableData[0];
+            statsDiv.innerHTML = `<div class="stat-card"><div class="value">${data.total.toLocaleString()} ₽</div><div>${data.selectedMonth}</div></div><div class="stat-card"><div class="value">${data.tableData.length}</div><div>Категорий</div></div><div class="stat-card"><div class="value">${topCat?.category || '—'}</div><div>Топ категория</div></div><div class="stat-card"><div class="value">${topCat?.amount?.toLocaleString() || '0'} ₽</div><div>Сумма топ</div></div>`;
+        }
+    }
+    
+    function updateComparison() {
+        if (!fullData) return;
+        const familySize = parseInt(document.getElementById('familySizeFilter').value) || 1;
+        const selectedMonth = document.getElementById('monthFilter').value;
+        let monthlyAvg = {};
+        if (selectedMonth === 'all') monthlyAvg = fullData.monthly_avg;
+        else { const monthData = fullData.months_table_data.find(m => m.month === selectedMonth); if (monthData) monthData.categories.forEach(cat => { monthlyAvg[cat.category] = cat.amount; }); }
+        const body = document.getElementById('comparisonBody');
+        body.innerHTML = '';
+        for (const [cat, my] of Object.entries(monthlyAvg)) {
+            const russia = russianAverages[cat] || 0;
+            const perPerson = Math.round(my / familySize);
+            if (russia > 0) {
+                const diff = Math.round((perPerson - russia) / russia * 100);
+                body.innerHTML += `<tr><td><strong>${cat}</strong></td><td>${perPerson.toLocaleString()} ₽</td><td>${russia.toLocaleString()} ₽</td><td class="${diff > 0 ? 'positive' : 'negative'}">${diff > 0 ? '+' : ''}${diff}%</td></tr>`;
+            }
+        }
+    }
+    
+    // Переключение вкладок
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.getElementById(btn.dataset.tab).classList.add('active');
+        };
+    });
+    
+    document.querySelectorAll('.feature-card').forEach(card => {
+        card.onclick = () => {
+            const tabName = card.dataset.tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.tab-btn[data-tab="${tabName}"]`).classList.add('active');
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+        };
+    });
+    
+    if (token) console.log('Токен загружен');
+</script>
+</body>
+</html>

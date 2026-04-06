@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>ФинНавигатор - Анализ расходов</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #c47a5e; margin-bottom: 20px; }
+        .upload-area { background: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .filters { margin: 20px 0; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .filters select { padding: 8px 16px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .stat-card h3 { color: #666; font-size: 14px; margin-bottom: 10px; }
+        .stat-card .value { font-size: 28px; font-weight: bold; color: #c47a5e; }
+        .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .chart-box { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .table-box { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 20px; }
+        .comparison-box { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f5f5f5; }
+        .recommendations { background: #fff3e0; padding: 15px; border-radius: 12px; margin-top: 20px; }
+        button { background: #c47a5e; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #a85e42; }
+        .status { margin-top: 10px; padding: 10px; border-radius: 8px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .positive { color: #c47a5e; font-weight: bold; }
+        .negative { color: #4caf50; }
+        .family-size { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+        .family-size input { width: 80px; padding: 6px; border-radius: 8px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🧭 ФинНавигатор - Анализ расходов</h1>
+    
+    <div class="upload-area">
+        <input type="file" id="fileInput" accept=".xls,.xlsx" style="margin-right: 10px;">
+        <button onclick="uploadFile()">📊 Загрузить и анализировать</button>
+        <div class="family-size">
+            <label>👨‍👩‍👧 Размер семьи:</label>
+            <input type="number" id="familySize" value="1" min="1" onchange="updateComparison()">
+        </div>
+        <div id="status" class="status"></div>
+    </div>
+    
+    <div id="results" style="display: none;">
+        <div class="filters">
+            <label>📅 Фильтр по месяцу:</label>
+            <select id="monthFilter" onchange="filterByMonth()">
+                <option value="all">Все месяцы</option>
+            </select>
+        </div>
+        
+        <div class="stats" id="stats"></div>
+        
+        <div class="charts">
+            <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+            <div class="chart-box"><canvas id="categoryChart"></canvas></div>
+        </div>
+        
+        <div class="table-box">
+            <h3>📋 Детализация расходов</h3>
+            <table id="dataTable">
+                <thead><tr><th>Категория</th><th>Сумма (₽)</th><th>Доля (%)</th></tr></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        
+        <div class="comparison-box" id="comparisonBox">
+            <h3>📊 Сравнение со средними расходами по России (на человека в месяц)</h3>
+            <table id="comparisonTable">
+                <thead><tr><th>Категория</th><th>Мои расходы (₽/мес)</th><th>Средние по РФ (₽/мес)</th><th>Отклонение</th></tr></thead>
+                <tbody id="comparisonBody"></tbody>
+            </table>
+        </div>
+        
+        <div class="recommendations" id="recommendations"></div>
+    </div>
+</div>
+
+<script>
+    let fullData = null;
+    let monthlyChart = null;
+    let categoryChart = null;
+    
+    // Средние расходы по России на человека в месяц
+    const russianAverages = {
+        'продукты': 18000, 'алкоголь': 3000, 'лекарства': 2000, 'машина': 5000,
+        'хобби': 3000, 'дача': 2000, 'квартира': 7000, 'лечение': 3000,
+        'образование': 4000, 'подарки': 5000, 'домаш.животн.': 1500, 'одежда': 4000,
+        'обувь': 2000, 'бытовая химия': 1500, 'косметические средства': 2000,
+        'бытовая техника': 3000, 'работа': 5000, 'тлф, пк': 3000
+    };
+    
+    async function uploadFile() {
+        const file = document.getElementById('fileInput').files[0];
+        if (!file) {
+            showStatus('Выберите файл', 'error');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        showStatus('Загрузка и анализ...', '');
+        
+        try {
+            const response = await fetch('/excel/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'ok') {
+                fullData = data;
+                showStatus('✅ Анализ завершён успешно!', 'success');
+                initFilters();
+                displayResults();
+            } else {
+                showStatus('❌ Ошибка: ' + JSON.stringify(data), 'error');
+            }
+        } catch(e) {
+            showStatus('❌ Ошибка: ' + e.message, 'error');
+        }
+    }
+    
+    function initFilters() {
+        const monthFilter = document.getElementById('monthFilter');
+        monthFilter.innerHTML = '<option value="all">Все месяцы</option>';
+        if (fullData && fullData.months) {
+            fullData.months.forEach(month => {
+                const option = document.createElement('option');
+                option.value = month;
+                option.textContent = month;
+                monthFilter.appendChild(option);
+            });
+        }
+    }
+    
+    function filterByMonth() {
+        displayResults();
+        updateComparison();
+    }
+    
+    function getCurrentData() {
+        const monthFilter = document.getElementById('monthFilter');
+        const selectedMonth = monthFilter.value;
+        const familySize = parseInt(document.getElementById('familySize').value) || 1;
+        
+        if (selectedMonth === 'all') {
+            return {
+                tableData: fullData.table_data,
+                chartData: fullData.chart_data,
+                total: fullData.total,
+                months: fullData.months,
+                totalsByMonth: fullData.totals_by_month,
+                monthlyAvg: fullData.monthly_avg,
+                familySize: familySize,
+                isAllMonths: true
+            };
+        } else {
+            const monthData = fullData.months_table_data.find(m => m.month === selectedMonth);
+            if (monthData) {
+                const sortedCategories = [...monthData.categories].sort((a,b) => b.amount - a.amount);
+                return {
+                    tableData: sortedCategories,
+                    chartData: sortedCategories.slice(0, 8),
+                    total: monthData.total,
+                    months: [selectedMonth],
+                    totalsByMonth: [monthData.total],
+                    monthlyAvg: {},
+                    familySize: familySize,
+                    isAllMonths: false,
+                    selectedMonth: selectedMonth
+                };
+            }
+        }
+        return null;
+    }
+    
+    function displayResults() {
+        if (!fullData) return;
+        
+        const data = getCurrentData();
+        if (!data) return;
+        
+        document.getElementById('results').style.display = 'block';
+        
+        // Статистика - исправленная версия
+        let statsHtml = '';
+        
+        if (data.isAllMonths) {
+            statsHtml = `
+                <div class="stat-card"><h3>Общие расходы</h3><div class="value">${data.total.toLocaleString()} ₽</div></div>
+                <div class="stat-card"><h3>Период</h3><div class="value">${data.months.length} ${declension(data.months.length, 'месяц', 'месяца', 'месяцев')}</div></div>
+                <div class="stat-card"><h3>Категории</h3><div class="value">${data.tableData.length}</div></div>
+                <div class="stat-card"><h3>Ср. в месяц</h3><div class="value">${Math.round(data.total / data.months.length).toLocaleString()} ₽</div></div>
+            `;
+        } else {
+            // Для одного месяца - правильные значения
+            const topCategory = data.tableData[0];
+            statsHtml = `
+                <div class="stat-card"><h3>📆 ${data.selectedMonth}</h3><div class="value">${data.total.toLocaleString()} ₽</div></div>
+                <div class="stat-card"><h3>📂 Категории</h3><div class="value">${data.tableData.length}</div></div>
+                <div class="stat-card"><h3>🥇 Топ категория</h3><div class="value">${topCategory ? topCategory.category : '—'}</div></div>
+                <div class="stat-card"><h3>💰 Сумма топ</h3><div class="value">${topCategory ? topCategory.amount.toLocaleString() : '0'} ₽</div></div>
+            `;
+        }
+        document.getElementById('stats').innerHTML = statsHtml;
+        
+        // Таблица
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        data.tableData.forEach(row => {
+            tbody.innerHTML += `<tr><td><strong>${row.category}</strong></td><td>${row.amount.toLocaleString()} ₽</td><td>${row.percent}%</td></tr>`;
+        });
+        
+        // График по месяцам
+        if (monthlyChart) monthlyChart.destroy();
+        if (data.months.length > 1) {
+            monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+                type: 'line',
+                data: {
+                    labels: data.months,
+                    datasets: [{ label: 'Расходы (₽)', data: data.totalsByMonth, borderColor: '#c47a5e', backgroundColor: '#c47a5e20', fill: true, tension: 0.3 }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'top' } } }
+            });
+        } else {
+            monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+                type: 'bar',
+                data: {
+                    labels: [data.selectedMonth || data.months[0]],
+                    datasets: [{ label: 'Расходы (₽)', data: data.totalsByMonth, backgroundColor: '#c47a5e' }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
+        
+        // Круговая диаграмма
+        if (categoryChart) categoryChart.destroy();
+        categoryChart = new Chart(document.getElementById('categoryChart'), {
+            type: 'pie',
+            data: {
+                labels: data.chartData.map(d => d.category),
+                datasets: [{ data: data.chartData.map(d => d.amount), backgroundColor: ['#c47a5e','#e7b183','#a5c882','#8b7a66','#c4a27a','#b68b6e','#d4a373','#9c6b4a'] }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+        
+        // Сравнение с Россией
+        updateComparison();
+        
+        // Рекомендации
+        let recommendationsHtml = '<h3>💡 Рекомендации AI</h3><ul>';
+        if (fullData.recommendations && fullData.recommendations.length > 0) {
+            recommendationsHtml += fullData.recommendations.map(r => `<li>${r}</li>`).join('');
+        } else {
+            recommendationsHtml += '<li>Нет рекомендаций</li>';
+        }
+        recommendationsHtml += '</ul>';
+        document.getElementById('recommendations').innerHTML = recommendationsHtml;
+    }
+    
+    function updateComparison() {
+        if (!fullData) return;
+        
+        const familySize = parseInt(document.getElementById('familySize').value) || 1;
+        const monthFilter = document.getElementById('monthFilter');
+        const selectedMonth = monthFilter.value;
+        
+        let monthlyAvg = {};
+        
+        if (selectedMonth === 'all') {
+            monthlyAvg = fullData.monthly_avg;
+        } else {
+            const monthData = fullData.months_table_data.find(m => m.month === selectedMonth);
+            if (monthData) {
+                monthData.categories.forEach(cat => {
+                    monthlyAvg[cat.category] = cat.amount;
+                });
+            }
+        }
+        
+        const comparisonBody = document.getElementById('comparisonBody');
+        comparisonBody.innerHTML = '';
+        
+        const sortedCategories = Object.keys(monthlyAvg).sort((a,b) => monthlyAvg[b] - monthlyAvg[a]);
+        
+        for (const category of sortedCategories) {
+            const myAmount = monthlyAvg[category];
+            const russianAvg = russianAverages[category] || 0;
+            const myPerPerson = Math.round(myAmount / familySize);
+            
+            if (russianAvg > 0) {
+                const deviation = Math.round((myPerPerson - russianAvg) / russianAvg * 100);
+                const deviationClass = deviation > 0 ? 'positive' : 'negative';
+                const deviationSign = deviation > 0 ? '+' : '';
+                
+                comparisonBody.innerHTML += `
+                    <tr>
+                        <td><strong>${category}</strong></td>
+                        <td>${myPerPerson.toLocaleString()} ₽</td>
+                        <td>${russianAvg.toLocaleString()} ₽</td>
+                        <td class="${deviationClass}">${deviationSign}${deviation}%</td>
+                    </tr>
+                `;
+            }
+        }
+    }
+    
+    function declension(n, one, two, five) {
+        n = Math.abs(n) % 100;
+        if (n >= 5 && n <= 20) return five;
+        n %= 10;
+        if (n === 1) return one;
+        if (n >= 2 && n <= 4) return two;
+        return five;
+    }
+    
+    function showStatus(msg, type) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.textContent = msg;
+        statusDiv.className = 'status ' + type;
+    }
+</script>
+</body>
+</html>

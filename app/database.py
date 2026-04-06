@@ -1,19 +1,56 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+import sqlite3
+from contextlib import contextmanager
+from app.config import config
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./data/finnavigator.db"
+DATABASE_PATH = "fin_navigator.db"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}  # <--- ЭТО ВАЖНО!
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+def init_db():
+    """Создаёт таблицы при первом запуске"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Таблица пользователей
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                hashed_password TEXT NOT NULL,
+                full_name TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Таблица профилей
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE NOT NULL,
+                first_name TEXT,
+                age INTEGER,
+                hobbies TEXT,
+                family_size INTEGER DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        """)
+        # Таблица целей
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                target_amount REAL NOT NULL,
+                current_amount REAL DEFAULT 0,
+                deadline DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        """)
+        conn.commit()
 
+@contextmanager
 def get_db():
-    db = SessionLocal()
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
     try:
-        yield db
+        yield conn
+        conn.commit()
     finally:
-        db.close()
+        conn.close()
